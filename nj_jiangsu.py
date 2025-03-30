@@ -1,312 +1,111 @@
+from gmssl import sm3, sm4
 import json
-import os
-from time import sleep
+import time
+from urllib.parse import quote_plus
 
-import jsonlines
-import requests
-from selenium import webdriver
-from selenium.common.exceptions import StaleElementReferenceException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
-# 设置 Chrome for Testing 的路径
-chrome_path = "/Users/cailibo/Documents/tools/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"  # 将此路径替换为实际 Chrome for Testing 的路径
-# 配置 Chrome 选项
-chrome_options = Options()
-chrome_options.binary_location = chrome_path  # 指定 Chrome for Testing 的二进制文件位置
-chrome_options.add_argument("--headless")  # 无头模式
-# chrome_options.add_argument("--disable-gpu")  # 如果系统支持 GPU，加快无头模式
-# chrome_options.add_argument("--no-sandbox")  # 一些环境需要此参数
-# chrome_options.add_argument("--disable-dev-shm-usage")  # 防止资源不足导致的启动卡顿
-# chrome_options.add_argument("--disable-extensions")  # 禁用扩展
-# chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # 隐藏自动化特征
-
-# 启动 Chrome 浏览器
-driver = webdriver.Chrome(options=chrome_options)
+# 初始化加密密钥（保持与JS一致）
+DECRYPTED_KEY = b"30062AFC48C0E7B5B0918851C0445A37"
 
 
-def get_province_details(url_local, province_name_local, district, year, page_index):
-    driver.get(url_local)
-    sleep(2)
+def sm3_hash(message: str):
+    """
+    国密sm3加密
+    :param message: 消息值，bytes类型
+    :return: 哈希值
+    """
 
-    # 1. 点击菜单，使其展开
-    search_form_box = driver.find_element(By.ID, "search-form-box")
-    dropdown_toggle = search_form_box.find_element(By.CLASS_NAME, "select-dropdown")
-    dropdown_toggle.click()
-    sleep(1)  # 等待菜单展开
+    msg_list = [i for i in bytes(message.encode('UTF-8'))]
+    hash_hex = sm3.sm3_hash(msg_list)
+    return hash_hex
 
-    # 2. 选择年份项（例如选择 2022 年）
-    year_option = driver.find_element(By.XPATH, "//li[text()='" + year + "']")
-    year_option.click()
+# SM3哈希函数
+# def hash_data(data):
+#     return sm3.sm3_hash(bytes(data, 'utf-8'))
 
-    # 点击“查询”按钮
-    search_button = driver.find_element(By.XPATH, "//button[contains(text(), '查询')]")
-    search_button.click()
-    sleep(2)
+# SM4加密函数
+def encrypt_data(data):
+    cipher = sm4.CryptSM4()
+    cipher.set_key(DECRYPTED_KEY, sm4.SM4_ENCRYPT)
+    encrypt_value = cipher.crypt_ecb(bytes(data, 'utf-8'))
+    return encrypt_value.hex()
 
-    # 使用requests请求分页数据
+# SM4解密函数
+def decrypt_data(encrypted_data):
+    cipher = sm4.CryptSM4()
+    cipher.set_key(DECRYPTED_KEY, sm4.SM4_DECRYPT)
+    decrypt_value = cipher.crypt_ecb(bytes.fromhex(encrypted_data))
+    return decrypt_value.decode('utf-8')
 
-    if page_index:
-        find_page_index = True
-        while find_page_index:
-            try:
-                page_item_element = driver.find_element(By.CLASS_NAME, "pagerItem")
-                page_item_list = page_item_element.find_elements(By.TAG_NAME, "a")
-                for index, page_item in enumerate(page_item_list):
-                    page_no = page_item.text
-                    if page_no == str(page_index):
-                        find_page_index = False
-                        page_item_list[index + 1].click()
-                    if index >= len(page_item_list) / 2 and page_no == '...':
-                        print('current page ' + page_item_list[index - 1].text)
-                        page_item.click()
-                        sleep(1)
+# 对象转查询字符串
+def convert_object_to_query_string(json_str):
+    data = json.loads(json_str)
+    sorted_items = sorted(data.items(), key=lambda x: x[0])
+    
+    query_params = []
+    for key, value in sorted_items:
+        if value:
+            encoded_key = quote_plus(key)
+            if isinstance(value, dict):
+                encoded_value = quote_plus(json.dumps(value, separators=(',', ':')))
+            else:
+                encoded_value = quote_plus(str(value))
+            query_params.append(f"{encoded_key}={encoded_value}")
+    
+    return "&".join(query_params)
 
-            except StaleElementReferenceException:
-                print("元素变得不可用，重新定位元素")
-                sleep(1)  # 稍等片刻再重新获取元素
-            except Exception as e:
-                print("翻页结束或出错:", e)
-                break  # 如果找不到“下一页”按钮，退出循环
-
-    has_next_page = True
-
-    while has_next_page:
-        # 等待页面渲染完成并获取 tbody
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.TAG_NAME, "tbody"))
-        )
-
-        # 等待 tbody 内部的 tr 标签加载完成
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.TAG_NAME, "tr"))
-        )
-        # 筛选table节点
-        tbody_element = driver.find_element(By.TAG_NAME, "tbody")
-        # 获取 <tbody> 下的所有 <tr> 行
-        rows = tbody_element.find_elements(By.TAG_NAME, "tr")
-        # 遍历每一行 <tr> 并获取所有 <td> 单元格内容
-        for row in rows:
-            # 获取当前行中的所有 <td> 单元格
-            cells = row.find_elements(By.TAG_NAME, "td")
-            # 提取并打印每个单元格中的文本
-            row_data = [cell.text for cell in cells]
-            print(row_data)
-            with jsonlines.open(province_name_local + "_" + year + ".json", mode='a') as writer:
-                writer.write(row_data)  # 自动处理每行写入
-        # 定位“下一页”按钮
-        try:
-            page_item_element = driver.find_element(By.CLASS_NAME, "pagerItem")
-            page_item_list = page_item_element.find_elements(By.TAG_NAME, "a")
-            for index, page_item in enumerate(page_item_list):
-                if 'current' == page_item.get_attribute("class") and index == len(page_item_list) - 3:
-                    has_next_page = False
-                if 'current' == page_item.get_attribute("class"):
-                    print('current page ' + page_item_list[index + 1].text)
-                    page_item_list[index + 1].click()
-                    sleep(2)
-
-        except StaleElementReferenceException:
-            print("元素变得不可用，重新定位元素")
-            sleep(1)  # 稍等片刻再重新获取元素
-        except Exception as e:
-            print("翻页结束或出错:", e)
-            break  # 如果找不到“下一页”按钮，退出循环
-
-
-def sendRequest(url, year, page_index, token, cookie, province, retry_times):
-    retry_times = retry_times + 1
-    if retry_times > 3:
-        return
-    # 设置请求头
-    headers = {
-        "Accept": "*/*",
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Cache-Control": "no-cache",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "Pragma": "no-cache",
-        "Proxy-Connection": "keep-alive",
-        "Referer": "https://bt.sdnj.org.cn:2021/pub/GongShiSearch",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        "X-Requested-With": "XMLHttpRequest"
-    }
-
-    # 设置请求数据
-    data = {
-        "__RequestVerificationToken": token,
-        "YearNum": year,
-        "areaName": "",
-        "AreaCode": "",
-        "n": "",
-        "JiJuLeiXing": "",
-        "JiJuLeiXingCode": "",
-        "FactoryName": "",
-        "BusinessName": "",
-        "ChuCBH": "",
-        "StartGJRiQi": "",
-        "EndGJRiQi": "",
-        "StateValue": "",
-        "StateName": "",
-        "qy": "",
-        "PageIndex": page_index,
-        "t": ""
-    }
-
-    # 发送 POST 请求
-    response = requests.post(url + "?pageIndex=" + page_index, headers=headers,
-                             data=data,
-                             verify=False, cookies=cookie)
-
-    # 输出响应
-    print("page_index " + page_index + ":" + str(response.status_code))
-    # print(response.text)
-    # 解析请求结果
-    if response.status_code == 200:
-        dir_path = os.path.join(province, year)
-        os.makedirs(dir_path, exist_ok=True)  # 自动创建目录
-
-        filename = f"{year}_{page_index}.txt"
-        file_path = os.path.join(dir_path, filename)
-
-        with open(file_path, 'a', encoding='utf-8') as file:
-            file.write(response.text)
+# 生成签名和时间戳
+def generate_signature_and_timestamp(input_data=None):
+    timestamp = int(time.time() * 1000)
+    query_str = ""
+    
+    if input_data and 'parameter' in input_data:
+        # 解密参数
+        decrypted = decrypt_data(input_data['parameter'])
+        params = json.loads(decrypted)
+        params['timestamp'] = timestamp
+        query_str = convert_object_to_query_string(json.dumps(params))
     else:
-        print("重试当前页数:" + page_index + "\t重试次数:" + str(retry_times))
-        # 重试
-        sleep(1)
-        sendRequest(url, year, page_index, token, cookie, province, retry_times)
-    sleep(1)
-
-
-def get_token_value(cookies):
-    """
-    从字典中获取包含RequestVerificationToken的键值
-    返回第一个匹配项的值，没有则返回None
-    """
-    return next((v for k, v in cookies.items()
-                 if 'RequestVerificationToken' in k), None)
-
-
-def get_province_details_by_requests(url_local, province_name_local, year, start_page, page_total):
-    driver.get(url_local)
-    sleep(2)
-
-    print("开始爬取" + province_name_local)
-    # 1. 点击菜单，使其展开
-    search_form_box = driver.find_element(By.ID, "search-form-box")
-    dropdown_toggle = search_form_box.find_element(By.CLASS_NAME, "select-dropdown")
-    dropdown_toggle.click()
-    sleep(1)  # 等待菜单展开
-
-    # 2. 选择年份项（例如选择 2022 年）
-    year_option = driver.find_element(By.XPATH, "//li[text()='" + year + "']")
-    year_option.click()
-
-    # 点击“查询”按钮
-    search_button = driver.find_element(By.XPATH, "//button[contains(text(), '查询')]")
-    search_button.click()
-    sleep(2)
-
-    # 从 Selenium 获取 cookies
-    selenium_cookies = driver.get_cookies()
-
-    # 转换为 requests 的 cookies 格式
-    requests_cookies = {cookie['name']: cookie['value'] for cookie in selenium_cookies}
-    token = get_token_value(requests_cookies)
-    current_page = int(start_page)
-    while current_page <= int(page_total):
-        sendRequest(driver.current_url, year, str(current_page), token, requests_cookies, province_name_local, 0)
-        current_page = current_page + 1
-
-
-def advanced_crawling():
-    # 方案一：无头浏览器+请求拦截（推荐）
-    from selenium.webdriver import ChromeOptions
-    from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+        params = input_data or {}
+        params['timestamp'] = timestamp
+        query_str = convert_object_to_query_string(json.dumps(params))
     
-    # 启用Chrome的网络日志捕获
-    capabilities = DesiredCapabilities.CHROME
-    capabilities['goog:loggingPrefs'] = {'performance': 'ALL'}
+    # 添加固定key
+    query_str += "&key=HD7232D2AAAKA@978D8723H211?IER&6"
     
-    # 配置无头浏览器
-    options = ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--auto-open-devtools-for-tabs")  # 自动打开开发者工具
-    
-    # 启动浏览器
-    driver = webdriver.Chrome(options=options)
-    
-    # 添加请求拦截
-    driver.execute_cdp_cmd('Network.enable', {})
-    
-    # 定义响应处理函数
-    def process_response(data):
-        if 'subsidyList' in data['params']['request']['url']:
-            print("捕获到加密响应:", data['params']['response'])
-            # 这里可以添加解密逻辑或保存原始加密数据
-    
-    # 监听网络响应
-    driver.add_listener("network.response", process_response)
-    
-    # 访问目标页面
-    driver.get("http://butiexitong.gagogroup.cn:8081/subsidyOpen")
-    
-    # 方案二：密码学逆向（需配合前端分析）
-    # 1. 定位前端加密库（通常在vendor.*.js或chunk.*.js中）
-    # 2. 提取RSA公钥和AES密钥生成逻辑
-    # 3. 使用Python密码学库复现加密流程
-    import execjs
-    
-    with open('decrypt.js', 'r') as f:
-        ctx = execjs.compile(f.read())
-    
-    encrypted_params = ctx.call('encryptRequest', {
-        'pageIndex': 1,
-        'pageSize': 20
-    })
-    
-    # 构造合法请求
-    headers = {
-        'x-encrypted': 'true',
-        'x-timestamp': str(int(time.time()*1000))
+    # 生成签名
+    hashed = sm3_hash(query_str).upper()
+    return {
+        'sign': encrypt_data(hashed),
+        'timestamp': encrypt_data(str(timestamp)),
+        'source': "ZRCSL7V0JIRK1PHY"
     }
+
+if __name__ == "__main__":
+    # 测试请求
+    payload = {
+        "applyType": 1,
+        "year": 2025,
+        "pageNum": 10,
+        "pageSize": 15
+    }
+    
+    encrypted_data = {
+        "parameter": encrypt_data(json.dumps(payload))
+    }
+    
+    headers = generate_signature_and_timestamp(encrypted_data)
+    print("生成的headers:", headers)
+    
+    import requests
     response = requests.post(
-        'https://api.butiexitong.com/subsidyList',
-        json=encrypted_params,
-        headers=headers
+        "http://butiexitong.gagogroup.cn:8081/api/api/loginSidePageEDE/getPurchaseOfAgriculturalMachinery",
+        headers={
+            "accept": "application/json, text/plain, */*",
+            "content-type": "application/json;charset=UTF-8",
+            **headers
+        },
+        json=encrypted_data
     )
     
-    # 解密响应数据
-    decrypted_data = ctx.call('decryptResponse', response.text)
-
-
-try:
-    driver.get("https://td.sxwhkj.com/Account/BuTCapitalGongS")
-    sleep(2)
-    province_element = driver.find_element(By.CLASS_NAME, "province-box")
-    province_element_list = province_element.find_elements(By.XPATH, "//a")
-    provinces = list()
-    for province in province_element_list:
-        province_dict = dict()
-        province_dict['url'] = province.get_attribute("href")
-        province_dict['name'] = province.get_attribute("text")
-        provinces.append(province_dict)
-    # 确保文件是以文本模式打开的
-    with open("nj.json", "w", encoding="utf-8") as f:
-        json.dump(provinces, f, ensure_ascii=False, indent=4)
-
-    # 遍历省份
-    for province in provinces:
-        if province['name'] == '江苏省':
-            url = province['url']
-            province_name = province['name']
-            # get_province_details(url, province_name, '2021')
-            # get_province_details(url, province_name, '', '2022', 3452)
-            # get_province_details(url, province_name, '2023')
-            get_province_details_by_requests(url, province_name, '2021', '1', '1958')
-
-finally:
-    # 关闭浏览器
-    driver.quit()
+    result = response.json()
+    print("解密响应:", decrypt_data(result['data']))
