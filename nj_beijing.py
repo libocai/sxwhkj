@@ -244,7 +244,7 @@ try:
             # get_province_details(url, province_name, '2021')
             # get_province_details(url, province_name, '', '2022', 3452)
             # get_province_details(url, province_name, '2023')
-            get_province_details_by_requests(url, province_name, '2025', '1', '1')
+            get_province_details_by_requests(url, province_name, '2022', '198', '198')
 
 finally:
     # 关闭浏览器

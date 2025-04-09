@@ -51,7 +51,7 @@ def process_directory(base_dir):
                         try:
                             data = parse_html_to_json(file_path)
                             combined_data.extend(data)
-                            print(f"已处理 {file}，新增 {len(data)} 条数据")
+                            # print(f"已处理 {file}，新增 {len(data)} 条数据")
                         except Exception as e:
                             print(f"处理文件 {file_path} 失败: {str(e)}")
                             continue
@@ -67,6 +67,8 @@ def process_directory(base_dir):
             try:
                 import pandas as pd
                 df = pd.read_json(output_path)
+                # 根据"序号"字段去重，保留最后出现的记录
+                df.drop_duplicates(subset=['序号'], keep='last', inplace=True)
                 excel_path = os.path.join(output_dir, f"{year}.xlsx")
                 df.to_excel(excel_path, index=False, engine='openpyxl')
                 print(f"成功生成Excel文件：{year}.xlsx")
@@ -74,4 +76,4 @@ def process_directory(base_dir):
                 print(f"Excel文件生成失败：{str(e)}")
 
 if __name__ == "__main__":
-    process_directory("/Users/cailibo/Documents/code/crawler/sxwhkj/山东省")
+    process_directory("/Users/cailibo/Documents/code/crawler/sxwhkj/辽宁大连")

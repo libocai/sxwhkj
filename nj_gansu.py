@@ -16,7 +16,7 @@ chrome_path = "/Users/cailibo/Documents/tools/chrome-mac-arm64/Google Chrome for
 # 配置 Chrome 选项
 chrome_options = Options()
 chrome_options.binary_location = chrome_path  # 指定 Chrome for Testing 的二进制文件位置
-chrome_options.add_argument("--headless")  # 无头模式
+# chrome_options.add_argument("--headless")  # 无头模式
 # chrome_options.add_argument("--disable-gpu")  # 如果系统支持 GPU，加快无头模式
 # chrome_options.add_argument("--no-sandbox")  # 一些环境需要此参数
 # chrome_options.add_argument("--disable-dev-shm-usage")  # 防止资源不足导致的启动卡顿
@@ -202,14 +202,14 @@ def get_token_value(cookies):
 
 def get_province_details_by_requests(url_local, province_name_local, year, start_page, page_total):
     driver.get(url_local)
-    sleep(2)
+    sleep(5)
 
     print("开始爬取" + province_name_local)
     # 1. 点击菜单，使其展开
     search_form_box = driver.find_element(By.ID, "search-form-box")
     dropdown_toggle = search_form_box.find_element(By.CLASS_NAME, "select-dropdown")
     dropdown_toggle.click()
-    sleep(1)  # 等待菜单展开
+    sleep(5)  # 等待菜单展开
 
     # 2. 选择年份项（例如选择 2022 年）
     year_option = driver.find_element(By.XPATH, "//li[text()='" + year + "']")
@@ -234,7 +234,7 @@ def get_province_details_by_requests(url_local, province_name_local, year, start
 
 try:
     driver.get("https://td.sxwhkj.com/Account/BuTCapitalGongS")
-    sleep(2)
+    sleep(5)
     province_element = driver.find_element(By.CLASS_NAME, "province-box")
     province_element_list = province_element.find_elements(By.XPATH, "//a")
     provinces = list()
@@ -252,11 +252,11 @@ try:
         if province['name'] == '甘肃省':
             url = province['url']
             province_name = province['name']
-            get_province_details_by_requests(url, province_name, '2021', '1', '1304')
-            get_province_details_by_requests(url, province_name, '2022', '1', '9963')
-            get_province_details_by_requests(url, province_name, '2023', '1', '2281')
-            get_province_details_by_requests(url, province_name, '2024', '1', '13027')
-            get_province_details_by_requests(url, province_name, '2025', '1', '1524')
+            # get_province_details_by_requests(url, province_name, '2021', '1', '1304')
+            # get_province_details_by_requests(url, province_name, '2022', '4967', '9963')
+            # get_province_details_by_requests(url, province_name, '2023', '1', '2281')
+            get_province_details_by_requests(url, province_name, '2024', '10688', '10688')
+            # get_province_details_by_requests(url, province_name, '2025', '1', '1524')
 
 finally:
     # 关闭浏览器

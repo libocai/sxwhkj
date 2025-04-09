@@ -16,7 +16,7 @@ chrome_path = "/Users/cailibo/Documents/tools/chrome-mac-arm64/Google Chrome for
 # 配置 Chrome 选项
 chrome_options = Options()
 chrome_options.binary_location = chrome_path  # 指定 Chrome for Testing 的二进制文件位置
-chrome_options.add_argument("--headless")  # 无头模式
+# chrome_options.add_argument("--headless")  # 无头模式
 # chrome_options.add_argument("--disable-gpu")  # 如果系统支持 GPU，加快无头模式
 # chrome_options.add_argument("--no-sandbox")  # 一些环境需要此参数
 # chrome_options.add_argument("--disable-dev-shm-usage")  # 防止资源不足导致的启动卡顿
@@ -46,7 +46,7 @@ def get_province_details(url_local, province_name_local, district, year, page_in
     search_form_box = driver.find_element(By.ID, "search-form-box")
     dropdown_toggle = search_form_box.find_element(By.CLASS_NAME, "select-dropdown")
     dropdown_toggle.click()
-    sleep(1)  # 等待菜单展开
+    sleep(5)  # 等待菜单展开
 
     # 2. 选择年份项（例如选择 2022 年）
     year_option = driver.find_element(By.XPATH, "//li[text()='" + year + "']")
@@ -55,7 +55,7 @@ def get_province_details(url_local, province_name_local, district, year, page_in
     # 点击“查询”按钮
     search_button = driver.find_element(By.XPATH, "//button[contains(text(), '查询')]")
     search_button.click()
-    sleep(2)
+    sleep(5)
 
     # 使用requests请求分页数据
 
@@ -202,14 +202,14 @@ def get_token_value(cookies):
 
 def get_province_details_by_requests(url_local, province_name_local, year, start_page, page_total):
     driver.get(url_local)
-    sleep(2)
+    sleep(3)
 
     print("开始爬取" + province_name_local)
     # 1. 点击菜单，使其展开
     search_form_box = driver.find_element(By.ID, "search-form-box")
     dropdown_toggle = search_form_box.find_element(By.CLASS_NAME, "select-dropdown")
     dropdown_toggle.click()
-    sleep(1)  # 等待菜单展开
+    sleep(5)  # 等待菜单展开
 
     # 2. 选择年份项（例如选择 2022 年）
     year_option = driver.find_element(By.XPATH, "//li[text()='" + year + "']")
@@ -218,7 +218,7 @@ def get_province_details_by_requests(url_local, province_name_local, year, start
     # 点击“查询”按钮
     search_button = driver.find_element(By.XPATH, "//button[contains(text(), '查询')]")
     search_button.click()
-    sleep(2)
+    sleep(5)
 
     # 从 Selenium 获取 cookies
     selenium_cookies = driver.get_cookies()
@@ -234,7 +234,7 @@ def get_province_details_by_requests(url_local, province_name_local, year, start
 
 try:
     driver.get("https://td.sxwhkj.com/Account/BuTCapitalGongS")
-    sleep(2)
+    sleep(5)
     province_element = driver.find_element(By.CLASS_NAME, "province-box")
     province_element_list = province_element.find_elements(By.XPATH, "//a")
     provinces = list()
@@ -252,10 +252,10 @@ try:
         if province['name'] == '陕西省':
             url = province['url']
             province_name = province['name']
-            get_province_details_by_requests(url, province_name, '2021', '1', '1311')
-            get_province_details_by_requests(url, province_name, '2022', '1', '5691')
-            get_province_details_by_requests(url, province_name, '2023', '1', '7790')
-            get_province_details_by_requests(url, province_name, '2024', '1', '6219')
+            # get_province_details_by_requests(url, province_name, '2021', '1', '1311')
+            # get_province_details_by_requests(url, province_name, '2022', '5685', '5691')
+            # get_province_details_by_requests(url, province_name, '2023', '2296', '7790')
+            # get_province_details_by_requests(url, province_name, '2024', '1', '6219')
             get_province_details_by_requests(url, province_name, '2025', '1', '35')
 
 finally:

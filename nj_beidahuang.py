@@ -252,11 +252,11 @@ try:
         if province['name'] == '北大荒农垦集团':
             url = province['url']
             province_name = province['name']
-            get_province_details_by_requests(url, province_name, '2021', '1', '1115')
-            get_province_details_by_requests(url, province_name, '2022', '1', '6211')
-            get_province_details_by_requests(url, province_name, '2023', '1', '4000')
-            get_province_details_by_requests(url, province_name, '2024', '1', '3938')
-            # get_province_details_by_requests(url, province_name, '2025', '1', '92')
+            # get_province_details_by_requests(url, province_name, '2021', '1', '1115')
+            # get_province_details_by_requests(url, province_name, '2022', '1', '6211')
+            # get_province_details_by_requests(url, province_name, '2023', '2603', '4000')
+            # get_province_details_by_requests(url, province_name, '2024', '1', '3938')
+            get_province_details_by_requests(url, province_name, '2025', '1', '92')
 
 finally:
     # 关闭浏览器
